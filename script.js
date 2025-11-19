@@ -14,7 +14,7 @@ const addQuestionBtn = document.getElementById('addQuestion');
 const addAnswerBtn = document.getElementById('addAnswer');
 const addConnectionBtn = document.getElementById('addConnection');
 const clearAllBtn = document.getElementById('clearAll');
-const exportTreeBtn = document.getElementById('exportTree');
+const exportImageBtn = document.getElementById('exportImage');
 const modeIndicator = document.getElementById('modeIndicator');
 
 // 초기화
@@ -30,7 +30,7 @@ function setupEventListeners() {
     addAnswerBtn.addEventListener('click', () => createBlock('answer'));
     addConnectionBtn.addEventListener('click', toggleConnectionMode);
     clearAllBtn.addEventListener('click', clearWorkspace);
-    exportTreeBtn.addEventListener('click', exportTree);
+    exportImageBtn.addEventListener('click', exportAsImage);
 }
 
 // 블록 생성
@@ -302,15 +302,32 @@ function drag(e) {
     let newX = clientX - workspaceRect.left - offsetX + workspace.scrollLeft;
     let newY = clientY - workspaceRect.top - offsetY + workspace.scrollTop;
 
-    // 작업 공간 경계 제한
+    // 최소값만 제한 (음수 방지)
     newX = Math.max(0, newX);
     newY = Math.max(0, newY);
 
     draggedBlock.style.left = `${newX}px`;
     draggedBlock.style.top = `${newY}px`;
     
+    // 작업 공간 자동 확장
+    expandWorkspaceIfNeeded(newX, newY);
+    
     // 연결선 실시간 업데이트
     updateConnectionLayer();
+}
+
+// 작업 공간 자동 확장
+function expandWorkspaceIfNeeded(x, y) {
+    const currentHeight = parseInt(workspace.style.minHeight || '2000');
+    const currentWidth = workspace.offsetWidth;
+    
+    // 블록이 하단 근처에 있으면 높이 확장
+    if (y + 300 > currentHeight) {
+        workspace.style.minHeight = `${y + 500}px`;
+    }
+    
+    // SVG 레이어도 같이 확장
+    connectionLayer.style.height = workspace.style.minHeight;
 }
 
 function stopDrag() {
@@ -483,4 +500,63 @@ function exportTree() {
     URL.revokeObjectURL(url);
 
     alert('결정 트리가 JSON 파일로 저장되었습니다!');
+}
+
+// 이미지로 내보내기 (PNG)
+async function exportAsImage() {
+    if (blocks.length === 0) {
+        alert('저장할 블록이 없습니다.');
+        return;
+    }
+
+    try {
+        // html2canvas 라이브러리 동적 로드
+        if (typeof html2canvas === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            document.head.appendChild(script);
+            
+            await new Promise((resolve, reject) => {
+                script.onload = resolve;
+                script.onerror = reject;
+            });
+        }
+
+        // 저장 버튼 임시 숨김
+        const controls = document.querySelector('.controls');
+        const modeInd = document.getElementById('modeIndicator');
+        const originalControlsDisplay = controls.style.display;
+        const originalModeDisplay = modeInd.style.display;
+        
+        controls.style.display = 'none';
+        modeInd.style.display = 'none';
+
+        // 작업 공간만 캡처
+        const canvas = await html2canvas(workspace, {
+            backgroundColor: '#ffffff',
+            scale: 2, // 고해상도
+            logging: false,
+            useCORS: true
+        });
+
+        // 버튼 다시 표시
+        controls.style.display = originalControlsDisplay;
+        modeInd.style.display = originalModeDisplay;
+
+        // PNG로 다운로드
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `결정트리_${new Date().toISOString().split('T')[0]}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            alert('결정 트리가 PNG 이미지로 저장되었습니다!');
+        }, 'image/png');
+
+    } catch (error) {
+        console.error('이미지 저장 오류:', error);
+        alert('이미지 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
 }

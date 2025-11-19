@@ -149,13 +149,13 @@ header p {
 
 .workspace {
     background: white;
-    min-height: 900px;
-    height: calc(100vh - 400px);
+    min-height: 2000px;
+    height: auto;
     border-radius: 20px;
     padding: 40px;
     box-shadow: 0 15px 40px rgba(0,0,0,0.2);
     position: relative;
-    overflow: auto;
+    overflow: visible;
 }
 
 .connection-layer {
