@@ -208,11 +208,58 @@ header p {
     border-radius: 16px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     cursor: move;
-    min-width: 220px;
+    min-width: 180px;
     max-width: 450px;
     transition: all 0.3s ease;
-    z-index: 10;
+    z-index: 100;
     animation: fadeIn 0.3s ease;
+}
+
+.block.size-small {
+    min-width: 150px;
+    max-width: 300px;
+    padding: 12px;
+    font-size: 0.85em;
+}
+
+.block.size-small .block-header {
+    font-size: 0.95em;
+    margin-bottom: 8px;
+}
+
+.block.size-small .block-input {
+    min-height: 50px;
+    font-size: 0.9em;
+    padding: 8px;
+}
+
+.block.size-small .block-type {
+    padding: 4px 10px;
+    font-size: 0.8em;
+}
+
+.block.size-small .delete-btn,
+.block.size-small .color-picker-btn,
+.block.size-small .size-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 1em;
+}
+
+.block.size-medium {
+    min-width: 220px;
+    max-width: 400px;
+}
+
+.block.size-large {
+    min-width: 280px;
+    max-width: 550px;
+    padding: 25px;
+    font-size: 1.1em;
+}
+
+.block.size-large .block-input {
+    min-height: 90px;
 }
 
 @keyframes fadeIn {
@@ -275,6 +322,109 @@ header p {
     margin-bottom: 12px;
     font-weight: 800;
     font-size: 1.15em;
+}
+
+.block-header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.color-picker-btn {
+    background: rgba(255,255,255,0.3);
+    border: 2px solid rgba(255,255,255,0.5);
+    color: white;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2em;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.color-picker-btn:hover {
+    background: rgba(255,255,255,0.5);
+    transform: scale(1.15);
+}
+
+.size-btn {
+    background: rgba(255,255,255,0.3);
+    border: 2px solid rgba(255,255,255,0.5);
+    color: white;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.size-btn:hover {
+    background: rgba(255,255,255,0.5);
+    transform: scale(1.15);
+}
+
+.color-picker-input {
+    display: none;
+}
+
+.color-palette {
+    position: absolute;
+    top: 45px;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    display: none;
+    z-index: 1000;
+    width: 200px;
+}
+
+.color-palette.show {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+.color-palette-title {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.color-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.color-palette-item {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.color-palette-item:hover {
+    transform: scale(1.15);
+    border-color: #333;
+}
+
+.color-palette-divider {
+    height: 1px;
+    background: #ddd;
+    margin: 10px 0;
 }
 
 .block-type {
@@ -362,7 +512,7 @@ header p {
     transition: all 0.2s ease;
     white-space: nowrap;
     position: absolute;
-    z-index: 100;
+    z-index: 50;
 }
 
 .connection-label:hover {

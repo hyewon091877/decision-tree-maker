@@ -7,6 +7,25 @@ let offsetX, offsetY;
 let connectionMode = false;
 let selectedBlock = null;
 
+// 색상 팔레트 프리셋
+const colorPalette = [
+    // 기본 색상
+    { name: '보라색', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+    { name: '초록색', color: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)' },
+    { name: '파란색', color: 'linear-gradient(135deg, #4299e1 0%, #3182ce 100%)' },
+    { name: '주황색', color: 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)' },
+    // 추가 색상
+    { name: '빨간색', color: 'linear-gradient(135deg, #f56565 0%, #e53e3e 100%)' },
+    { name: '분홍색', color: 'linear-gradient(135deg, #ed64a6 0%, #d53f8c 100%)' },
+    { name: '노란색', color: 'linear-gradient(135deg, #fbd38d 0%, #f6ad55 100%)' },
+    { name: '청록색', color: 'linear-gradient(135deg, #4fd1c5 0%, #38b2ac 100%)' },
+    // 어두운 색상
+    { name: '진한 보라', color: 'linear-gradient(135deg, #553c9a 0%, #44337a 100%)' },
+    { name: '진한 초록', color: 'linear-gradient(135deg, #2f855a 0%, #276749 100%)' },
+    { name: '진한 파랑', color: 'linear-gradient(135deg, #2c5282 0%, #2a4365 100%)' },
+    { name: '갈색', color: 'linear-gradient(135deg, #a0522d 0%, #8b4513 100%)' },
+];
+
 // DOM 요소
 const workspace = document.getElementById('workspace');
 const connectionLayer = document.getElementById('connectionLayer');
@@ -22,6 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFromStorage();
     setupEventListeners();
     updateConnectionLayer();
+    
+    // 팔레트 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.color-picker-btn') && !e.target.closest('.color-palette')) {
+            document.querySelectorAll('.color-palette').forEach(p => {
+                p.classList.remove('show');
+            });
+        }
+    });
 });
 
 // 이벤트 리스너 설정
@@ -62,14 +90,18 @@ function createBlock(type) {
         <div class="block-header">
             <span class="block-type">${typeLabel}</span>
             <div class="block-header-controls">
-                <button class="color-picker-btn" onclick="openColorPicker('${block.id}')" title="색상 변경">🎨</button>
-                <input type="color" class="color-picker-input" id="color-${block.id}" onchange="changeBlockColor('${block.id}', this.value)">
+                <button class="size-btn" onclick="toggleBlockSize('${block.id}')" title="크기 변경">📏</button>
+                <button class="color-picker-btn" onclick="toggleColorPalette(event, '${block.id}')" title="색상 변경">🎨</button>
                 <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
             </div>
         </div>
         <div class="block-content">
             <textarea class="block-input" placeholder="${placeholder}" 
                 onchange="saveToStorage()">${''}</textarea>
+        </div>
+        <div class="color-palette" id="palette-${block.id}">
+            <div class="color-palette-title">색상 선택</div>
+            <div class="color-palette-grid" id="palette-grid-${block.id}"></div>
         </div>
     `;
 
@@ -92,8 +124,12 @@ function createBlock(type) {
         x: parseInt(block.style.left),
         y: parseInt(block.style.top),
         content: '',
-        color: defaultColor
+        color: defaultColor,
+        size: 'medium'
     });
+
+    // 색상 팔레트 생성
+    createColorPaletteItems(block.id);
 
     saveToStorage();
 }
@@ -388,11 +424,74 @@ function openColorPicker(blockId) {
     }
 }
 
+// 색상 팔레트 토글
+function toggleColorPalette(event, blockId) {
+    event.stopPropagation();
+    
+    // 모든 팔레트 닫기
+    document.querySelectorAll('.color-palette').forEach(p => {
+        if (p.id !== `palette-${blockId}`) {
+            p.classList.remove('show');
+        }
+    });
+    
+    // 현재 팔레트 토글
+    const palette = document.getElementById(`palette-${blockId}`);
+    if (palette) {
+        palette.classList.toggle('show');
+    }
+}
+
+// 색상 팔레트 아이템 생성
+function createColorPaletteItems(blockId) {
+    const grid = document.getElementById(`palette-grid-${blockId}`);
+    if (!grid) return;
+    
+    colorPalette.forEach(item => {
+        const colorDiv = document.createElement('div');
+        colorDiv.className = 'color-palette-item';
+        colorDiv.style.background = item.color;
+        colorDiv.title = item.name;
+        colorDiv.onclick = (e) => {
+            e.stopPropagation();
+            changeBlockColor(blockId, item.color);
+            document.getElementById(`palette-${blockId}`).classList.remove('show');
+        };
+        grid.appendChild(colorDiv);
+    });
+}
+
+// 블록 크기 변경
+function toggleBlockSize(blockId) {
+    event.stopPropagation();
+    const block = document.getElementById(blockId);
+    if (!block) return;
+    
+    const blockData = blocks.find(b => b.id === blockId);
+    if (!blockData) return;
+    
+    // 크기 순환: small -> medium -> large -> small
+    const sizes = ['small', 'medium', 'large'];
+    const currentIndex = sizes.indexOf(blockData.size || 'medium');
+    const nextIndex = (currentIndex + 1) % sizes.length;
+    const newSize = sizes[nextIndex];
+    
+    // 기존 크기 클래스 제거
+    block.classList.remove('size-small', 'size-medium', 'size-large');
+    
+    // 새 크기 적용
+    block.classList.add(`size-${newSize}`);
+    blockData.size = newSize;
+    
+    saveToStorage();
+    updateConnectionLayer();
+}
+
 // 블록 색상 변경
 function changeBlockColor(blockId, color) {
     const block = document.getElementById(blockId);
     if (block) {
-        // 단색으로 변경
+        // 색상 적용
         block.style.background = color;
         
         // 데이터 업데이트
@@ -486,6 +585,10 @@ function loadFromStorage() {
             if (blockData.color) {
                 block.style.background = blockData.color;
             }
+            
+            // 저장된 크기 적용
+            const size = blockData.size || 'medium';
+            block.classList.add(`size-${size}`);
 
             const typeLabel = blockData.type === 'question' ? '❓ 질문' : '✅ 답변';
             const placeholder = blockData.type === 'question' 
@@ -496,8 +599,8 @@ function loadFromStorage() {
                 <div class="block-header">
                     <span class="block-type">${typeLabel}</span>
                     <div class="block-header-controls">
-                        <button class="color-picker-btn" onclick="openColorPicker('${block.id}')" title="색상 변경">🎨</button>
-                        <input type="color" class="color-picker-input" id="color-${block.id}" onchange="changeBlockColor('${block.id}', this.value)">
+                        <button class="size-btn" onclick="toggleBlockSize('${block.id}')" title="크기 변경">📏</button>
+                        <button class="color-picker-btn" onclick="toggleColorPalette(event, '${block.id}')" title="색상 변경">🎨</button>
                         <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
                     </div>
                 </div>
@@ -505,11 +608,18 @@ function loadFromStorage() {
                     <textarea class="block-input" placeholder="${placeholder}" 
                         onchange="saveToStorage()">${blockData.content}</textarea>
                 </div>
+                <div class="color-palette" id="palette-${block.id}">
+                    <div class="color-palette-title">색상 선택</div>
+                    <div class="color-palette-grid" id="palette-grid-${block.id}"></div>
+                </div>
             `;
 
             workspace.appendChild(block);
             makeDraggable(block);
             block.addEventListener('click', handleBlockClick);
+            
+            // 색상 팔레트 생성
+            createColorPaletteItems(block.id);
         });
 
         // 안내 메시지 제거
