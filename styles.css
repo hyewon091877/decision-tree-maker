@@ -208,17 +208,46 @@ header p {
     border-radius: 16px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     cursor: move;
-    min-width: 180px;
-    max-width: 450px;
-    transition: all 0.3s ease;
+    min-width: 150px;
+    max-width: 600px;
+    width: 220px;
+    transition: box-shadow 0.3s ease;
     z-index: 100;
     animation: fadeIn 0.3s ease;
+    resize: none;
+}
+
+.block.resizing {
+    transition: none;
+}
+
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: se-resize;
+    background: rgba(255,255,255,0.5);
+    border-radius: 0 0 16px 0;
+    z-index: 200;
+}
+
+.resize-handle::after {
+    content: '⋰';
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 14px;
+    color: rgba(0,0,0,0.4);
+    font-weight: bold;
+}
+
+.resize-handle:hover {
+    background: rgba(255,255,255,0.8);
 }
 
 .block.size-small {
-    min-width: 150px;
-    max-width: 300px;
-    padding: 12px;
     font-size: 0.85em;
 }
 
@@ -247,14 +276,11 @@ header p {
 }
 
 .block.size-medium {
-    min-width: 220px;
-    max-width: 400px;
+    width: 220px;
 }
 
 .block.size-large {
-    min-width: 280px;
-    max-width: 550px;
-    padding: 25px;
+    width: 320px;
     font-size: 1.1em;
 }
 

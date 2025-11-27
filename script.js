@@ -1,9 +1,35 @@
-// 전역 변수
+// 블록 크기 변경
+function toggleBlockSize(blockId) {
+    event.stopPropagation();
+    const block = document.getElementById(blockId);
+    if (!block) return;
+    
+    const blockData = blocks.find(b => b.id === blockId);
+    if (!blockData) return;
+    
+    // 크기 순환: small -> medium -> large -> small
+    const sizes = ['small', 'medium', 'large'];
+    const currentIndex = sizes.indexOf(blockData.size || 'medium');
+    const nextIndex = (currentIndex + 1) % sizes.length;
+    const newSize = sizes[nextIndex];
+    
+    // 기존 크기 클래스 제거
+    block.classList.remove('size-small', 'size-medium', 'size-large');
+    
+    // 새 크기 적용
+    block.classList.add(`size-${newSize}`);
+    blockData.size = newSize;
+    
+    saveToStorage();
+    updateConnectionLayer();
+}// 전역 변수
 let blockCounter = 0;
 let blocks = [];
 let connections = [];
 let draggedBlock = null;
+let resizingBlock = null;
 let offsetX, offsetY;
+let startWidth, startHeight;
 let connectionMode = false;
 let selectedBlock = null;
 
@@ -90,7 +116,6 @@ function createBlock(type) {
         <div class="block-header">
             <span class="block-type">${typeLabel}</span>
             <div class="block-header-controls">
-                <button class="size-btn" onclick="toggleBlockSize('${block.id}')" title="크기 변경">📏</button>
                 <button class="color-picker-btn" onclick="toggleColorPalette(event, '${block.id}')" title="색상 변경">🎨</button>
                 <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
             </div>
@@ -99,6 +124,7 @@ function createBlock(type) {
             <textarea class="block-input" placeholder="${placeholder}" 
                 onchange="saveToStorage()">${''}</textarea>
         </div>
+        <div class="resize-handle"></div>
         <div class="color-palette" id="palette-${block.id}">
             <div class="color-palette-title">색상 선택</div>
             <div class="color-palette-grid" id="palette-grid-${block.id}"></div>
@@ -115,6 +141,7 @@ function createBlock(type) {
 
     // 드래그 및 클릭 기능 추가
     makeDraggable(block);
+    makeResizable(block);
     block.addEventListener('click', handleBlockClick);
     
     // 블록 정보 저장
@@ -123,9 +150,9 @@ function createBlock(type) {
         type: type,
         x: parseInt(block.style.left),
         y: parseInt(block.style.top),
+        width: 220,
         content: '',
-        color: defaultColor,
-        size: 'medium'
+        color: defaultColor
     });
 
     // 색상 팔레트 생성
@@ -202,12 +229,45 @@ function createConnection(fromId, toId) {
         return;
     }
     
-    // 레이블 선택 (예/아니오)
-    const label = prompt('연결 레이블을 입력하세요:\n1. 예\n2. 아니오\n3. 기타 (직접 입력)', '예');
+    // 레이블 선택 모달 표시
+    const labelOptions = [
+        { value: '예', display: '✅ 예' },
+        { value: '아니오', display: '❌ 아니오' },
+        { value: '', display: '⭕ 레이블 없음' },
+        { value: 'custom', display: '✏️ 직접 입력' }
+    ];
     
-    if (label === null) return; // 취소
+    let message = '연결 레이블을 선택하세요:\n\n';
+    labelOptions.forEach((opt, idx) => {
+        message += `${idx + 1}. ${opt.display}\n`;
+    });
     
-    const labelType = label === '예' ? 'yes' : label === '아니오' ? 'no' : 'custom';
+    const choice = prompt(message + '\n번호를 입력하세요 (1-4):', '1');
+    
+    if (choice === null) return; // 취소
+    
+    const selectedIndex = parseInt(choice) - 1;
+    if (selectedIndex < 0 || selectedIndex >= labelOptions.length) {
+        alert('잘못된 선택입니다.');
+        return;
+    }
+    
+    const selected = labelOptions[selectedIndex];
+    let label = selected.value;
+    let labelType = 'none';
+    
+    if (selected.value === 'custom') {
+        label = prompt('레이블 텍스트를 입력하세요:', '');
+        if (label === null || label.trim() === '') return;
+        labelType = 'custom';
+    } else if (selected.value === '예') {
+        labelType = 'yes';
+    } else if (selected.value === '아니오') {
+        labelType = 'no';
+    } else {
+        label = '';
+        labelType = 'none';
+    }
     
     connections.push({
         id: `conn-${Date.now()}`,
@@ -273,18 +333,20 @@ function updateConnectionLayer() {
         polygon.setAttribute('fill', conn.labelType === 'yes' ? '#48bb78' : conn.labelType === 'no' ? '#f56565' : '#764ba2');
         connectionLayer.appendChild(polygon);
         
-        // 레이블 생성 (HTML 요소로)
-        const labelDiv = document.createElement('div');
-        labelDiv.className = `connection-label connection-label-${conn.labelType}`;
-        labelDiv.textContent = conn.label;
-        labelDiv.style.left = `${(x1 + x2) / 2 - 30}px`;
-        labelDiv.style.top = `${midY - 15}px`;
-        labelDiv.dataset.connId = conn.id;
-        
-        // 레이블 클릭으로 연결 삭제
-        labelDiv.addEventListener('click', () => deleteConnection(conn.id));
-        
-        workspace.appendChild(labelDiv);
+        // 레이블 생성 (HTML 요소로) - 레이블이 있을 때만
+        if (conn.label && conn.label.trim() !== '') {
+            const labelDiv = document.createElement('div');
+            labelDiv.className = `connection-label connection-label-${conn.labelType}`;
+            labelDiv.textContent = conn.label;
+            labelDiv.style.left = `${(x1 + x2) / 2 - 30}px`;
+            labelDiv.style.top = `${midY - 15}px`;
+            labelDiv.dataset.connId = conn.id;
+            
+            // 레이블 클릭으로 연결 삭제
+            labelDiv.addEventListener('click', () => deleteConnection(conn.id));
+            
+            workspace.appendChild(labelDiv);
+        }
     });
 }
 
@@ -303,10 +365,87 @@ function makeDraggable(block) {
     block.addEventListener('touchstart', startDrag);
 }
 
+// 블록 크기 조절 가능하게 만들기
+function makeResizable(block) {
+    const handle = block.querySelector('.resize-handle');
+    if (!handle) return;
+    
+    handle.addEventListener('mousedown', startResize);
+    handle.addEventListener('touchstart', startResize);
+}
+
+function startResize(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    resizingBlock = e.target.closest('.block');
+    if (!resizingBlock) return;
+    
+    resizingBlock.classList.add('resizing');
+    
+    startWidth = resizingBlock.offsetWidth;
+    
+    if (e.type === 'touchstart') {
+        offsetX = e.touches[0].clientX;
+    } else {
+        offsetX = e.clientX;
+    }
+    
+    document.addEventListener('mousemove', resize);
+    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('touchmove', resize);
+    document.addEventListener('touchend', stopResize);
+}
+
+function resize(e) {
+    if (!resizingBlock) return;
+    
+    let clientX;
+    if (e.type === 'touchmove') {
+        clientX = e.touches[0].clientX;
+    } else {
+        clientX = e.clientX;
+    }
+    
+    const deltaX = clientX - offsetX;
+    let newWidth = startWidth + deltaX;
+    
+    // 최소/최대 크기 제한
+    newWidth = Math.max(150, Math.min(600, newWidth));
+    
+    resizingBlock.style.width = `${newWidth}px`;
+    
+    // 연결선 업데이트
+    updateConnectionLayer();
+}
+
+function stopResize() {
+    if (resizingBlock) {
+        resizingBlock.classList.remove('resizing');
+        
+        // 크기 정보 업데이트
+        const blockData = blocks.find(b => b.id === resizingBlock.id);
+        if (blockData) {
+            blockData.width = resizingBlock.offsetWidth;
+        }
+        
+        saveToStorage();
+        updateConnectionLayer();
+        resizingBlock = null;
+    }
+    
+    document.removeEventListener('mousemove', resize);
+    document.removeEventListener('mouseup', stopResize);
+    document.removeEventListener('touchmove', resize);
+    document.removeEventListener('touchend', stopResize);
+}
+
 function startDrag(e) {
     if (connectionMode) return;
     if (e.target.classList.contains('block-input') || 
-        e.target.classList.contains('delete-btn')) {
+        e.target.classList.contains('delete-btn') ||
+        e.target.classList.contains('color-picker-btn') ||
+        e.target.classList.contains('resize-handle')) {
         return;
     }
 
@@ -586,9 +725,10 @@ function loadFromStorage() {
                 block.style.background = blockData.color;
             }
             
-            // 저장된 크기 적용
-            const size = blockData.size || 'medium';
-            block.classList.add(`size-${size}`);
+            // 저장된 너비 적용
+            if (blockData.width) {
+                block.style.width = `${blockData.width}px`;
+            }
 
             const typeLabel = blockData.type === 'question' ? '❓ 질문' : '✅ 답변';
             const placeholder = blockData.type === 'question' 
@@ -599,7 +739,6 @@ function loadFromStorage() {
                 <div class="block-header">
                     <span class="block-type">${typeLabel}</span>
                     <div class="block-header-controls">
-                        <button class="size-btn" onclick="toggleBlockSize('${block.id}')" title="크기 변경">📏</button>
                         <button class="color-picker-btn" onclick="toggleColorPalette(event, '${block.id}')" title="색상 변경">🎨</button>
                         <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
                     </div>
@@ -608,6 +747,7 @@ function loadFromStorage() {
                     <textarea class="block-input" placeholder="${placeholder}" 
                         onchange="saveToStorage()">${blockData.content}</textarea>
                 </div>
+                <div class="resize-handle"></div>
                 <div class="color-palette" id="palette-${block.id}">
                     <div class="color-palette-title">색상 선택</div>
                     <div class="color-palette-grid" id="palette-grid-${block.id}"></div>
@@ -616,6 +756,7 @@ function loadFromStorage() {
 
             workspace.appendChild(block);
             makeDraggable(block);
+            makeResizable(block);
             block.addEventListener('click', handleBlockClick);
             
             // 색상 팔레트 생성
