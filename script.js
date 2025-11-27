@@ -50,11 +50,22 @@ function createBlock(type) {
     const placeholder = type === 'question' 
         ? '예: 이 천체는 스스로 빛을 낼까요?' 
         : '예: 태양입니다!';
+    
+    // 기본 색상
+    const defaultColor = type === 'question' 
+        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        : 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+
+    block.style.background = defaultColor;
 
     block.innerHTML = `
         <div class="block-header">
             <span class="block-type">${typeLabel}</span>
-            <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
+            <div class="block-header-controls">
+                <button class="color-picker-btn" onclick="openColorPicker('${block.id}')" title="색상 변경">🎨</button>
+                <input type="color" class="color-picker-input" id="color-${block.id}" onchange="changeBlockColor('${block.id}', this.value)">
+                <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
+            </div>
         </div>
         <div class="block-content">
             <textarea class="block-input" placeholder="${placeholder}" 
@@ -80,7 +91,8 @@ function createBlock(type) {
         type: type,
         x: parseInt(block.style.left),
         y: parseInt(block.style.top),
-        content: ''
+        content: '',
+        color: defaultColor
     });
 
     saveToStorage();
@@ -367,6 +379,32 @@ function deleteBlock(blockId) {
     }
 }
 
+// 색상 선택기 열기
+function openColorPicker(blockId) {
+    event.stopPropagation();
+    const colorInput = document.getElementById(`color-${blockId}`);
+    if (colorInput) {
+        colorInput.click();
+    }
+}
+
+// 블록 색상 변경
+function changeBlockColor(blockId, color) {
+    const block = document.getElementById(blockId);
+    if (block) {
+        // 단색으로 변경
+        block.style.background = color;
+        
+        // 데이터 업데이트
+        const blockData = blocks.find(b => b.id === blockId);
+        if (blockData) {
+            blockData.color = color;
+        }
+        
+        saveToStorage();
+    }
+}
+
 // 전체 삭제
 function clearWorkspace() {
     if (blocks.length === 0) {
@@ -443,6 +481,11 @@ function loadFromStorage() {
             block.id = blockData.id;
             block.style.left = `${blockData.x}px`;
             block.style.top = `${blockData.y}px`;
+            
+            // 저장된 색상 적용
+            if (blockData.color) {
+                block.style.background = blockData.color;
+            }
 
             const typeLabel = blockData.type === 'question' ? '❓ 질문' : '✅ 답변';
             const placeholder = blockData.type === 'question' 
@@ -452,7 +495,11 @@ function loadFromStorage() {
             block.innerHTML = `
                 <div class="block-header">
                     <span class="block-type">${typeLabel}</span>
-                    <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
+                    <div class="block-header-controls">
+                        <button class="color-picker-btn" onclick="openColorPicker('${block.id}')" title="색상 변경">🎨</button>
+                        <input type="color" class="color-picker-input" id="color-${block.id}" onchange="changeBlockColor('${block.id}', this.value)">
+                        <button class="delete-btn" onclick="deleteBlock('${block.id}')">✕</button>
+                    </div>
                 </div>
                 <div class="block-content">
                     <textarea class="block-input" placeholder="${placeholder}" 
