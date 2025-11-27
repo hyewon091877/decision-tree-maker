@@ -299,17 +299,81 @@ function updateConnectionLayer() {
         const toRect = toBlock.getBoundingClientRect();
         const workspaceRect = workspace.getBoundingClientRect();
         
-        // 시작점 (블록 중앙 하단)
-        const x1 = fromRect.left - workspaceRect.left + fromRect.width / 2;
-        const y1 = fromRect.top - workspaceRect.top + fromRect.height;
+        // 블록 중심점 계산
+        const fromCenterX = fromRect.left - workspaceRect.left + fromRect.width / 2;
+        const fromCenterY = fromRect.top - workspaceRect.top + fromRect.height / 2;
+        const toCenterX = toRect.left - workspaceRect.left + toRect.width / 2;
+        const toCenterY = toRect.top - workspaceRect.top + toRect.height / 2;
         
-        // 끝점 (블록 중앙 상단)
-        const x2 = toRect.left - workspaceRect.left + toRect.width / 2;
-        const y2 = toRect.top - workspaceRect.top;
+        // 블록 간 방향 계산
+        const dx = toCenterX - fromCenterX;
+        const dy = toCenterY - fromCenterY;
+        const angle = Math.atan2(dy, dx);
+        
+        // 시작점과 끝점을 블록 테두리로 조정
+        let x1, y1, x2, y2;
+        
+        // From 블록의 연결점 (블록 테두리)
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // 가로 방향이 더 큼 (좌우 연결)
+            if (dx > 0) {
+                // 오른쪽으로
+                x1 = fromRect.left - workspaceRect.left + fromRect.width;
+                y1 = fromCenterY;
+            } else {
+                // 왼쪽으로
+                x1 = fromRect.left - workspaceRect.left;
+                y1 = fromCenterY;
+            }
+        } else {
+            // 세로 방향이 더 큼 (상하 연결)
+            if (dy > 0) {
+                // 아래로
+                x1 = fromCenterX;
+                y1 = fromRect.top - workspaceRect.top + fromRect.height;
+            } else {
+                // 위로
+                x1 = fromCenterX;
+                y1 = fromRect.top - workspaceRect.top;
+            }
+        }
+        
+        // To 블록의 연결점 (블록 테두리)
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // 가로 방향이 더 큼 (좌우 연결)
+            if (dx > 0) {
+                // 오른쪽에서 들어감
+                x2 = toRect.left - workspaceRect.left;
+                y2 = toCenterY;
+            } else {
+                // 왼쪽에서 들어감
+                x2 = toRect.left - workspaceRect.left + toRect.width;
+                y2 = toCenterY;
+            }
+        } else {
+            // 세로 방향이 더 큼 (상하 연결)
+            if (dy > 0) {
+                // 아래에서 들어감
+                x2 = toCenterX;
+                y2 = toRect.top - workspaceRect.top;
+            } else {
+                // 위에서 들어감
+                x2 = toCenterX;
+                y2 = toRect.top - workspaceRect.top + toRect.height;
+            }
+        }
         
         // 곡선 경로 생성 (베지어 곡선)
-        const midY = (y1 + y2) / 2;
-        const path = `M ${x1} ${y1} Q ${x1} ${midY}, ${(x1 + x2) / 2} ${midY} T ${x2} ${y2}`;
+        let path;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // 가로 연결: 수평 곡선
+            const midX = (x1 + x2) / 2;
+            path = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+        } else {
+            // 세로 연결: 수직 곡선
+            const midY = (y1 + y2) / 2;
+            path = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+        }
         
         // SVG 경로 생성
         const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -320,11 +384,11 @@ function updateConnectionLayer() {
         
         // 화살표 생성
         const arrowSize = 12;
-        const angle = Math.atan2(y2 - midY, x2 - (x1 + x2) / 2);
+        const arrowAngle = Math.atan2(y2 - y1, x2 - x1);
         const arrowPoints = [
             [x2, y2],
-            [x2 - arrowSize * Math.cos(angle - Math.PI / 6), y2 - arrowSize * Math.sin(angle - Math.PI / 6)],
-            [x2 - arrowSize * Math.cos(angle + Math.PI / 6), y2 - arrowSize * Math.sin(angle + Math.PI / 6)]
+            [x2 - arrowSize * Math.cos(arrowAngle - Math.PI / 6), y2 - arrowSize * Math.sin(arrowAngle - Math.PI / 6)],
+            [x2 - arrowSize * Math.cos(arrowAngle + Math.PI / 6), y2 - arrowSize * Math.sin(arrowAngle + Math.PI / 6)]
         ];
         
         const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
@@ -338,8 +402,13 @@ function updateConnectionLayer() {
             const labelDiv = document.createElement('div');
             labelDiv.className = `connection-label connection-label-${conn.labelType}`;
             labelDiv.textContent = conn.label;
-            labelDiv.style.left = `${(x1 + x2) / 2 - 30}px`;
-            labelDiv.style.top = `${midY - 15}px`;
+            
+            // 레이블 위치: 경로의 중간점
+            const labelX = (x1 + x2) / 2 - 30;
+            const labelY = (y1 + y2) / 2 - 15;
+            
+            labelDiv.style.left = `${labelX}px`;
+            labelDiv.style.top = `${labelY}px`;
             labelDiv.dataset.connId = conn.id;
             
             // 레이블 클릭으로 연결 삭제
